@@ -7,16 +7,16 @@ import (
 
 
 func sendResponse(conn *net.UDPConn, addr *net.UDPAddr, hash string) {
-    _,err := conn.WriteToUDP([]byte("Hello, here is the hash  - " + hash), addr)
+    _,err := conn.WriteToUDP([]byte("<name>New Job</name><code>001</code><hash>36</hash><start>0</start><end>50</end>"), addr)
     if err != nil {
         fmt.Printf("Couldn't send response %v", err)
     }
-//     time.Sleep(3*time.Second)
-//     _,err = conn.WriteToUDP([]byte("New Job <001>"), addr)
-//     if err != nil {
-//         fmt.Printf("Couldn't send response %v", err)
-//     }
-// }
+    time.Sleep(3*time.Second)
+    _,err = conn.WriteToUDP([]byte("<name>New Job</name><code>001</code><hash>36</hash><start>0</start><end>50</end>"), addr)
+    if err != nil {
+        fmt.Printf("Couldn't send response %v", err)
+    }
+}
 
 
 func main() {

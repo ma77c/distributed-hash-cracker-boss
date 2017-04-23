@@ -3,78 +3,92 @@ import (
     "fmt"
     "time"
     "net"
-    "sync"
     "strings"
     "strconv"
 )
 
-func keepReading(conn net.Conn, work_ch chan int) {
-  dh := make(chan int)
+
+func getValueByElementXXX(w string, element string) string {
+  x := strings.Split(w, "<"+element+">")
+  y := strings.Split(x[1], "</"+element+">")
+  z := y[0]
+  return z
+}
+func keepReadingXXX(conn net.Conn, serverMessageChannel chan string) {
   var byteArray = make([]byte, 2048)
   for {
     n, err := conn.Read(byteArray)
     if err == nil {
-      fmt.Printf("SERVER : %s\n", byteArray[:n])
-      if strings.Contains(string(byteArray[:n]), "<001>") {
-        dh <- 302
-      } else if (strings.Contains(string(byteArray[:n]), "hash")) {
-          go unHash("10", dh, work_ch)
-      }
-    } else {
-        fmt.Printf("Some error %v\n", err)
+      fmt.Printf("got message\n")
+      serverMessageChannel <- string(byteArray[:n])
     }
   }
 }
-func unHash(hash string, dh chan int, work_ch chan int) {
-  hash_int, err := strconv.Atoi(hash)
+
+func unHashXXX(hash string, start string, end string, unHashChannel chan string, killChannel chan string) {
+  hashInt, err := strconv.Atoi(hash)
+  startInt, err := strconv.Atoi(start)
+  endInt, err := strconv.Atoi(end)
+
+  fmt.Printf("starting new job = %v\n", hashInt)
   if err != nil {
     fmt.Printf("Some error %v\n", err)
     return
   }
-  var dh_clean int
-  for i := 0; i < 100; i++ {
-    fmt.Printf("SERVER waiting\n")
+  for i:= startInt; i <= endInt; i++ {
     select {
-    case dh_clean = <- dh:
-      fmt.Printf("SERVER : %s\n", dh_clean)
-      if (dh_clean == 302) {
-        fmt.Printf("Redirecting\n")
-        work_ch <- 200
+    case kch := <-killChannel:
+      if strings.Contains(kch, "<code>001</code>") {
+        fmt.Printf("stopping job\n")
         return
       }
     default:
-      if (i == hash_int) {
-        fmt.Printf("Hash Found : %v\n", i)
-        work_ch <- 200
+      if i == hashInt {
+        unHashChannel <- "<code>002</code><password>"+strconv.Itoa(i)+"</password>"
         return
       }
     }
-    time.Sleep(1*time.Second)
-  }
-}
-
-func work(conn net.Conn, wg *sync.WaitGroup) {
-  work_ch := make(chan int)
-  var work_ch_clean int
-  go keepReading(conn, work_ch)
-  for {
-    work_ch_clean = <- work_ch
-    if (work_ch_clean == 200) {
-      fmt.Printf("hellohello\n")
-      wg.Done()
-    }
+    time.Sleep(1 * time.Second)
   }
 }
 
 func main() {
-  var wg = &sync.WaitGroup{}
   conn, err := net.Dial("udp", "127.0.0.1:1234")
   if err != nil {
       fmt.Printf("Some error %v", err)
       return
   }
-  wg.Add(1)
-  go work(conn, wg)
+  //// send message to server
   fmt.Fprintf(conn, "Give me a hash to work on ...")
-  wg.Wait()
+  serverMessageChannel := make(chan string)
+  unHashChannel := make(chan string)
+  killChannel := make(chan string)
+  go keepReadingXXX(conn, serverMessageChannel)
+  var working bool
+  for {
+    select {
+    case smch := <-serverMessageChannel:
+      fmt.Printf("SERVER : %s\n", smch)
+      code := getValueByElementXXX(smch, "code")
+      if code == "001" {
+        if working == true {
+          killChannel <- "<code>001</code>"
+          working = false
+        }
+        start := getValueByElementXXX(smch, "start")
+        end := getValueByElementXXX(smch, "end")
+        go unHashXXX("10", start, end, unHashChannel, killChannel)
+        working = true
+      }
+    case uhch := <-unHashChannel:
+      code := getValueByElementXXX(uhch, "code")
+      if code == "002" {
+        password := getValueByElementXXX(uhch, "password")
+        fmt.Printf("password = %s\n", password)
+        fmt.Printf("END!")
+        return
+      }
+    }
+  }
+
 }
