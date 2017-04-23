@@ -1,6 +1,7 @@
 package main
 import (
     "fmt"
+    "time"
     "net"
 )
 
@@ -10,7 +11,12 @@ func sendResponse(conn *net.UDPConn, addr *net.UDPAddr, hash string) {
     if err != nil {
         fmt.Printf("Couldn't send response %v", err)
     }
-}
+//     time.Sleep(3*time.Second)
+//     _,err = conn.WriteToUDP([]byte("New Job <001>"), addr)
+//     if err != nil {
+//         fmt.Printf("Couldn't send response %v", err)
+//     }
+// }
 
 
 func main() {
@@ -28,7 +34,7 @@ func main() {
     for {
         n, remoteaddr, err := ser.ReadFromUDP(p)
         fmt.Printf("CLIENT : %v : %s\n", remoteaddr, p[:n])
-        if err !=  nil {
+        if err != nil {
             fmt.Printf("Some error  %v", err)
             continue
         }
