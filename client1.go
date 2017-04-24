@@ -1,10 +1,11 @@
 package main
 import (
     "fmt"
-    "time"
     "net"
     "strings"
     "strconv"
+    "crypto/md5"
+    "encoding/hex"
 )
 
 
@@ -26,11 +27,10 @@ func keepReadingXXX(conn net.Conn, serverMessageChannel chan string) {
 }
 
 func unHashXXX(hash string, start string, end string, unHashChannel chan string, killChannel chan string) {
-  hashInt, err := strconv.Atoi(hash)
   startInt, err := strconv.Atoi(start)
   endInt, err := strconv.Atoi(end)
 
-  fmt.Printf("starting new job = %v\n", hashInt)
+  fmt.Printf("starting new job = %s\n", hash)
   if err != nil {
     fmt.Printf("Some error %v\n", err)
     return
@@ -43,12 +43,16 @@ func unHashXXX(hash string, start string, end string, unHashChannel chan string,
         return
       }
     default:
-      if i == hashInt {
+      iString := strconv.Itoa(i)
+      hasher := md5.New()
+      hasher.Write([]byte(iString))
+      possibleHash := hex.EncodeToString(hasher.Sum(nil))
+      // fmt.Printf("current hash = %s\n", possibleHash)
+      if possibleHash == hash {
         unHashChannel <- "<code>002</code><password>"+strconv.Itoa(i)+"</password>"
         return
       }
     }
-    time.Sleep(1 * time.Second)
   }
 }
 
@@ -75,9 +79,10 @@ func main() {
           killChannel <- "<code>001</code>"
           working = false
         }
+        hash := getValueByElementXXX(smch, "hash")
         start := getValueByElementXXX(smch, "start")
         end := getValueByElementXXX(smch, "end")
-        go unHashXXX("10", start, end, unHashChannel, killChannel)
+        go unHashXXX(hash, start, end, unHashChannel, killChannel)
         working = true
       }
     case uhch := <-unHashChannel:

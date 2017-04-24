@@ -1,26 +1,30 @@
 package main
 import (
     "fmt"
-    "time"
     "net"
+    "crypto/md5"
+    "encoding/hex"
 )
 
 
 func sendResponse(conn *net.UDPConn, addr *net.UDPAddr, hash string) {
-    _,err := conn.WriteToUDP([]byte("<name>New Job</name><code>001</code><hash>36</hash><start>0</start><end>50</end>"), addr)
+    _,err := conn.WriteToUDP([]byte("<name>New Job</name><code>001</code><hash>"+string(hash[:])+"</hash><start>0</start><end>11000</end>"), addr)
     if err != nil {
         fmt.Printf("Couldn't send response %v", err)
     }
-    time.Sleep(3*time.Second)
-    _,err = conn.WriteToUDP([]byte("<name>New Job</name><code>001</code><hash>36</hash><start>0</start><end>50</end>"), addr)
-    if err != nil {
-        fmt.Printf("Couldn't send response %v", err)
-    }
+    // time.Sleep(3*time.Second)
+    // _,err = conn.WriteToUDP([]byte("<name>New Job</name><code>001</code><hash>"+string(hash[:])+"</hash><start>0</start><end>50</end>"), addr)
+    // if err != nil {
+    //     fmt.Printf("Couldn't send response %v", err)
+    // }
 }
 
 
 func main() {
-    hash := "36";
+    password:= "10000"
+    hasher := md5.New()
+    hasher.Write([]byte(password))
+    hash := hex.EncodeToString(hasher.Sum(nil))
     p := make([]byte, 2048)
     addr := net.UDPAddr{
         Port: 1234,
