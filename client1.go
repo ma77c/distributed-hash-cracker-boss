@@ -38,8 +38,9 @@ func unHashXXX(hash string, start string, end string, unHashChannel chan string,
   for i:= startInt; i <= endInt; i++ {
     select {
     case kch := <-killChannel:
-      if strings.Contains(kch, "<code>001</code>") {
+      if strings.Contains(kch, "<code>003</code>") {
         fmt.Printf("stopping job\n")
+        unHashChannel <- "<code>004</code><start>"+strconv.Itoa(i)+"</start><end>"+strconv.Itoa(endInt)+"</end>"
         return
       }
     default:
