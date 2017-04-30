@@ -38,9 +38,9 @@ func unHashXXX(hash string, start string, end string, unHashChannel chan string,
   for i:= startInt; i <= endInt; i++ {
     select {
     case kch := <-killChannel:
-      if strings.Contains(kch, "<code>003</code>") {
+      if strings.Contains(kch, "<code>0020</code>") {
         fmt.Printf("stopping job\n")
-        unHashChannel <- "<code>004</code><start>"+strconv.Itoa(i)+"</start><end>"+strconv.Itoa(endInt)+"</end>"
+        unHashChannel <- "<code>0021</code><start>"+strconv.Itoa(i)+"</start><end>"+strconv.Itoa(endInt)+"</end>"
         return
       }
     default:
@@ -50,7 +50,7 @@ func unHashXXX(hash string, start string, end string, unHashChannel chan string,
       possibleHash := hex.EncodeToString(hasher.Sum(nil))
       // fmt.Printf("current hash = %s\n", possibleHash)
       if possibleHash == hash {
-        unHashChannel <- "<code>002</code><password>"+strconv.Itoa(i)+"</password>"
+        unHashChannel <- "<code>0091</code><password>"+strconv.Itoa(i)+"</password>"
         return
       }
     }
@@ -58,13 +58,14 @@ func unHashXXX(hash string, start string, end string, unHashChannel chan string,
 }
 
 func main() {
+  var id int
   conn, err := net.Dial("udp", "127.0.0.1:1234")
   if err != nil {
       fmt.Printf("Some error %v", err)
       return
   }
   //// send message to server
-  fmt.Fprintf(conn, "Give me a hash to work on ...")
+  fmt.Fprintf(conn, "<id>-1</id><name>New Job</name><type>Request</type><code>0010</code>")
   serverMessageChannel := make(chan string)
   unHashChannel := make(chan string)
   killChannel := make(chan string)
@@ -75,20 +76,27 @@ func main() {
     case smch := <-serverMessageChannel:
       fmt.Printf("SERVER : %s\n", smch)
       code := getValueByElementXXX(smch, "code")
-      if code == "001" {
-        if working == true {
-          killChannel <- "<code>001</code>"
-          working = false
-        }
-        hash := getValueByElementXXX(smch, "hash")
-        start := getValueByElementXXX(smch, "start")
-        end := getValueByElementXXX(smch, "end")
-        go unHashXXX(hash, start, end, unHashChannel, killChannel)
-        working = true
+      if code == "0011" {
+          id := getValueByElementXXX(smch, "id")
+          hash := getValueByElementXXX(smch, "hash")
+          start := getValueByElementXXX(smch, "start")
+          end := getValueByElementXXX(smch, "end")
+          go unHashXXX(hash, start, end, unHashChannel, killChannel)
+          working = true
+      } else if code == "0020" {
+          if working == true {
+            killChannel <- smch
+            working = false
+          }
       }
     case uhch := <-unHashChannel:
       code := getValueByElementXXX(uhch, "code")
-      if code == "002" {
+      //// response - return ranges
+      if (code) == "0021" {
+        //// forward ranges to server
+        fmt.Fprintf(conn, uhch+"<id>"+strconv.Itoa(id)+"</id>")
+      }
+      if code == "0091" {
         password := getValueByElementXXX(uhch, "password")
         fmt.Printf("password = %s\n", password)
         fmt.Printf("END!")
