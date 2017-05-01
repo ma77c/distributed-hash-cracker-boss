@@ -62,7 +62,7 @@ func unHashXXX(hash string, start string, end string, unHashChannel chan string,
 
 func main() {
   var id int
-  conn, err := net.Dial("udp", "127.0.0.1:1234")
+  conn, err := net.Dial("udp", "10.10.10.2:1234")
   if err != nil {
       fmt.Printf("Some error %v", err)
       return
