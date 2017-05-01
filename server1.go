@@ -6,36 +6,25 @@ import (
     "encoding/hex"
     "math"
     "strconv"
+    "strings"
 )
 //// codes ////
 //
-//// 0010 - Request - New Job
+//// 0000 - Request - New Job
 //
-//// 0011 - Response - New Job
+//// 0001 - Response - New Job
 //
-//// 0020 - Request - Stop Work Return Ranges
+//// 0010 - Request -
 //
-//// 0021 - Response - Stop Work Return Ranges
+//// 0011 - Request -
+//
+//// 0020 - Request -
+//
+//// 0021 - Response -
 //
 //// 0030 - Request -
 //
 //// 0031 - Response -
-//
-//// 0040 - Request -
-//
-//// 0041 - Response -
-//
-//// 0050 - Request -
-//
-//// 0051 - Response -
-//
-//// 0060 - Request -
-//
-//// 0061 - Response -
-//
-//// 0070 - Request -
-//
-//// 0071 - Response -
 //
 func checkError(err error) {
   if err != nil {
@@ -56,20 +45,12 @@ type Range struct {
   clientID int
 }
 type Client struct {
-  address *net.UDPAddr
-  start int
-  end int
-  checkIn bool
   id int
+  address *net.UDPAddr
 }
 
 func (c Client) SetAddress(address *net.UDPAddr) {
   c.address = address
-}
-
-func (c Client) SetRange(start int, end int) {
-  c.start = start
-  c.end = end
 }
 
 func sendResponse(conn *net.UDPConn, addr *net.UDPAddr, response string) {
@@ -77,10 +58,22 @@ func sendResponse(conn *net.UDPConn, addr *net.UDPAddr, response string) {
     checkError(err)
 }
 
+func removeRangeByID(rangeArray []Range, clientID int) []Range {
+  for _, r := range rangeArray {
+    if r.clientID == clientID {
+      r.clientID = rangeArray[len(rangeArray)-1].clientID
+      r.start = rangeArray[len(rangeArray)-1].start
+      r.end = rangeArray[len(rangeArray)-1].end
+      return rangeArray[:len(rangeArray)-1]
+    }
+  }
+  return nil
+}
+
 
 func main() {
   //// hash
-  password:= "44444444"
+  password:= "73111111"
   hasher := md5.New()
   hasher.Write([]byte(password))
   hash := hex.EncodeToString(hasher.Sum(nil))
@@ -92,14 +85,12 @@ func main() {
     upperLimit = upperLimit + (math.Pow(10, float64(i)))
   }
   upperLimit = upperLimit * 9
-  upperLimit = int(upperLimit)
 
+  increment := 1000000
 
   activeClients := []Client{}
-  waitList := []Client{}
-
-  ranges := []Range{}
-  ranges = append(ranges, Range{start: lowerLimit, end: upperLimit, clientID: nil})
+  minorRanges := []Range{}
+  majorRange := Range{start: lowerLimit, end: int(upperLimit)}
 
   addr := net.UDPAddr {
       Port: 1234,
@@ -115,61 +106,51 @@ func main() {
     n, inAddress, err := conn.ReadFromUDP(byteArray)
     checkError(err)
     //// boom - message received - lets parse the message
-    inMessage := byteArray[:n]
-    inID := int(getValueByElementXXX(inMessage, "id"))
-    inStart := int(getValueByElementXXX(inMessage, "start"))
-    inEnd :=  int(getValueByElementXXX(inMessage, "end"))
+    inMessage := string(byteArray[:n])
+    inID, err := strconv.Atoi(getValueByElementXXX(inMessage, "id"))
+    inCode := getValueByElementXXX(inMessage, "code")
     //// initiate temporary client
-    inClient := Client{ id: inID, address: inAddress, start: inStart, end: inEnd, checkIn : false }
-    fmt.Printf("CLIENT : %v : %s\n", inClient.address, inClient.message)
+    inClient := Client{ id: inID, address: inAddress }
+    fmt.Printf("CLIENT : %v : %s\n", inClient.address, inMessage)
 
-    //// if first client ever
-    if len(activeClients) == 0 {
-      inClient.id = 0;
-      ranges[0].clientID = 0
-      inClient.start = ranges[0].start
-      inClient.end = ranges[0].end
-      response := "<id>0</id><name>New Job</name><code>0011</code><start>"+strconv.Itoa(inClient.start)+"</start><end>"+strconv.Itoa(inClient.start)+"</end>"
-      go sendResponse(conn, ac.address, response)
-      activeClients = append(activeClients, inClient)
-    }
     //// if brand new client
     if inClient.id == -1 {
-      //// add to waitlist
-      waitList = append(waitList, inClient)
-      //// send message to active clients - stop work request range
+      greatestID := -1
       for _, ac := range activeClients {
-        ac.checkIn = false
-        response := "<name>Stop Work Request Range</name><code>0020</code>"
-        go sendResponse(conn, ac.address, response)
+        if ac.id > greatestID {
+          greatestID = ac.id
+        }
       }
+      if greatestID == -1 {
+        inClient.id = 0
+      } else {
+        inClient.id = greatestID + 1
+      }
+      start := majorRange.start
+      end := majorRange.start + increment - 1
+      majorRange.start = end + 1
+      minor := Range{start: start, end: end, clientID: inClient.id}
+      minorRanges = append(minorRanges, minor)
+
+      response := "<id>0</id><name>New Job</name><code>0001</code><hash>"+hash+"</hash><start>"+strconv.Itoa(minor.start)+"</start><end>"+strconv.Itoa(minor.end)+"</end>"
+      go sendResponse(conn, inClient.address, response)
+
     //// if active client
     } else {
-      inCode := getValueByElementXXX(inMessage, "code")
-      if inCode == "0021" {
-        for _, ac : = range activeClients {
-          if ac.id == inClient.id {
-            ac.start = inClient.start
-            ac.end = inClient.end
-            ac.checkIn = true
-          }
-        }
-        allIn := true
-        for _, ac := range activeClients {
-          if ac.checkIn == false {
-            allIn == false
-          }
-        }
-        //// if all clients check in
-        if allIn == true {
-          for _, c := range clients {
-            for _, r := range ranges {
-              if r.clientID == c.id {
-                
-              }
-            }
-          }
-        }
+      if inCode == "0000" {
+        minorRanges = removeRangeByID(minorRanges, inClient.id)
+        start := majorRange.start
+        end := majorRange.start + increment - 1
+        majorRange.start = end + 1
+        minor := Range{start: start, end: end, clientID: inClient.id}
+        minorRanges = append(minorRanges, minor)
+        response := "<id>"+strconv.Itoa(inClient.id)+"</id><name>New Job</name><code>0001</code><hash>"+hash+"</hash><start>"+strconv.Itoa(minor.start)+"</start><end>"+strconv.Itoa(minor.end)+"</end>"
+        go sendResponse(conn, inClient.address, response)
+      } else if inCode == "0091" {
+        password := getValueByElementXXX(inMessage, "password")
+        fmt.Printf("password = %s\n", password)
+        fmt.Printf("END!")
+        return
       }
     }
   }

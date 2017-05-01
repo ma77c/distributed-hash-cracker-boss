@@ -55,6 +55,9 @@ func unHashXXX(hash string, start string, end string, unHashChannel chan string,
       }
     }
   }
+  fmt.Printf("finished job - need new work\n")
+  unHashChannel <- "<name>New Job</name><code>0000</code>"
+  return
 }
 
 func main() {
@@ -65,7 +68,7 @@ func main() {
       return
   }
   //// send message to server
-  fmt.Fprintf(conn, "<id>-1</id><name>New Job</name><type>Request</type><code>0010</code>")
+  fmt.Fprintf(conn, "<id>-1</id><name>New Job</name><type>Request</type><code>0000</code>")
   serverMessageChannel := make(chan string)
   unHashChannel := make(chan string)
   killChannel := make(chan string)
@@ -76,8 +79,8 @@ func main() {
     case smch := <-serverMessageChannel:
       fmt.Printf("SERVER : %s\n", smch)
       code := getValueByElementXXX(smch, "code")
-      if code == "0011" {
-          id := getValueByElementXXX(smch, "id")
+      if code == "0001" {
+          id, err = strconv.Atoi(getValueByElementXXX(smch, "id"))
           hash := getValueByElementXXX(smch, "hash")
           start := getValueByElementXXX(smch, "start")
           end := getValueByElementXXX(smch, "end")
@@ -95,12 +98,15 @@ func main() {
       if (code) == "0021" {
         //// forward ranges to server
         fmt.Fprintf(conn, uhch+"<id>"+strconv.Itoa(id)+"</id>")
-      }
-      if code == "0091" {
+      } else if code == "0091" {
         password := getValueByElementXXX(uhch, "password")
+        fmt.Fprintf(conn, uhch+"<id>"+strconv.Itoa(id)+"</id>")
         fmt.Printf("password = %s\n", password)
         fmt.Printf("END!")
         return
+      } else if code == "0000" {
+        response := uhch+"<id>"+strconv.Itoa(id)+"</id>"
+        fmt.Fprintf(conn, response)
       }
     }
   }
