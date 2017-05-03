@@ -5,8 +5,8 @@ import (
     "crypto/md5"
     "encoding/hex"
     "math"
-    "strconv"
     "strings"
+    "encoding/json"
 )
 //// codes ////
 //
@@ -40,30 +40,31 @@ func getValueByElementXXX(w string, element string) string {
 }
 
 type Range struct {
-  start int
-  end int
-  clientID int
+  Start int
+  End int
+  ClientID int
 }
 type Client struct {
-  id int
-  address *net.UDPAddr
+  ID int
+  Address *net.UDPAddr
+  Start int
+  End int
+  Code string
+  Hash string
+  Password string
 }
 
-func (c Client) SetAddress(address *net.UDPAddr) {
-  c.address = address
-}
-
-func sendResponse(conn *net.UDPConn, addr *net.UDPAddr, response string) {
+func send(conn *net.UDPConn, addr *net.UDPAddr, response []byte) {
     _,err := conn.WriteToUDP([]byte(response), addr)
     checkError(err)
 }
 
-func removeRangeByID(rangeArray []Range, clientID int) []Range {
+func removeRangeByID(rangeArray []Range, ClientID int) []Range {
   for _, r := range rangeArray {
-    if r.clientID == clientID {
-      r.clientID = rangeArray[len(rangeArray)-1].clientID
-      r.start = rangeArray[len(rangeArray)-1].start
-      r.end = rangeArray[len(rangeArray)-1].end
+    if r.ClientID == ClientID {
+      r.ClientID = rangeArray[len(rangeArray)-1].ClientID
+      r.Start = rangeArray[len(rangeArray)-1].Start
+      r.End = rangeArray[len(rangeArray)-1].End
       return rangeArray[:len(rangeArray)-1]
     }
   }
@@ -77,7 +78,7 @@ func main() {
   hasher := md5.New()
   hasher.Write([]byte(password))
   hash := hex.EncodeToString(hasher.Sum(nil))
-  //// the big range
+  //// limits
   numChars := 8
   lowerLimit := 0
   upperLimit := math.Pow(10, float64(numChars - 1))
@@ -85,13 +86,15 @@ func main() {
     upperLimit = upperLimit + (math.Pow(10, float64(i)))
   }
   upperLimit = upperLimit * 9
+  //// ranges
+  minorRanges := []Range{}
+  majorRange := Range{Start: lowerLimit, End: int(upperLimit)}
 
   increment := 1000000
 
   activeClients := []Client{}
-  minorRanges := []Range{}
-  majorRange := Range{start: lowerLimit, end: int(upperLimit)}
 
+  //// prepare address for listener
   addr := net.UDPAddr {
       Port: 1234,
       IP: net.ParseIP("127.0.0.1"),
@@ -99,56 +102,63 @@ func main() {
   //// listener for incoming clients
   conn, err := net.ListenUDP("udp", &addr)
   checkError(err)
-  //// keep listening
+  //// keep listening - cycle when receive message
   for {
     byteArray := make([]byte, 2048)
     //// blocks until reads a message
     n, inAddress, err := conn.ReadFromUDP(byteArray)
     checkError(err)
-    //// boom - message received - lets parse the message
-    inMessage := string(byteArray[:n])
-    inID, err := strconv.Atoi(getValueByElementXXX(inMessage, "id"))
-    inCode := getValueByElementXXX(inMessage, "code")
+    //// boom - message received - lets parse the message into a temporary client
     //// initiate temporary client
-    inClient := Client{ id: inID, address: inAddress }
-    fmt.Printf("CLIENT : %v : %s\n", inClient.address, inMessage)
+    inClient := Client{}
+    if err == json.Unmarshal(byteArray[:n], &inClient) {
+      checkError(err)
+    }
+    inClient.Address = inAddress
+    fmt.Printf("CLIENT : %v : %+v\n", inClient.Address, inClient)
 
     //// if brand new client
-    if inClient.id == -1 {
+    if inClient.ID == -1 {
+      //// assign client ID
       greatestID := -1
       for _, ac := range activeClients {
-        if ac.id > greatestID {
-          greatestID = ac.id
+        if ac.ID > greatestID {
+          greatestID = ac.ID
         }
       }
       if greatestID == -1 {
-        inClient.id = 0
+        inClient.ID = 0
       } else {
-        inClient.id = greatestID + 1
+        inClient.ID = greatestID + 1
       }
-      start := majorRange.start
-      end := majorRange.start + increment - 1
-      majorRange.start = end + 1
-      minor := Range{start: start, end: end, clientID: inClient.id}
+      inClient.Start = majorRange.Start
+      inClient.End = majorRange.Start + increment - 1
+      majorRange.Start = inClient.End + 1
+      minor := Range{Start: inClient.Start, End: inClient.End, ClientID: inClient.ID}
       minorRanges = append(minorRanges, minor)
-
-      response := "<id>0</id><name>New Job</name><code>0001</code><hash>"+hash+"</hash><start>"+strconv.Itoa(minor.start)+"</start><end>"+strconv.Itoa(minor.end)+"</end>"
-      go sendResponse(conn, inClient.address, response)
+      inClient.Code = "0001"
+      inClient.Hash = hash
+    fmt.Printf("CLIENT : %v : %v\n", inClient.Address, inClient)
+      assignment, err := json.Marshal(inClient)
+      checkError(err)
+      go send(conn, inClient.Address, assignment)
+      activeClients = append(activeClients, inClient)
 
     //// if active client
     } else {
-      if inCode == "0000" {
-        minorRanges = removeRangeByID(minorRanges, inClient.id)
-        start := majorRange.start
-        end := majorRange.start + increment - 1
-        majorRange.start = end + 1
-        minor := Range{start: start, end: end, clientID: inClient.id}
+      if inClient.Code == "0000" {
+        minorRanges = removeRangeByID(minorRanges, inClient.ID)
+        inClient.Start = majorRange.Start
+        inClient.End = majorRange.Start + increment - 1
+        majorRange.Start = inClient.End + 1
+        minor := Range{Start: inClient.Start, End: inClient.End, ClientID: inClient.ID}
         minorRanges = append(minorRanges, minor)
-        response := "<id>"+strconv.Itoa(inClient.id)+"</id><name>New Job</name><code>0001</code><hash>"+hash+"</hash><start>"+strconv.Itoa(minor.start)+"</start><end>"+strconv.Itoa(minor.end)+"</end>"
-        go sendResponse(conn, inClient.address, response)
-      } else if inCode == "0091" {
-        password := getValueByElementXXX(inMessage, "password")
-        fmt.Printf("password = %s\n", password)
+        inClient.Code = "0001"
+        assignment, err := json.Marshal(inClient)
+        checkError(err)
+        go send(conn, inClient.Address, assignment)
+      } else if inClient.Code == "0091" {
+        fmt.Printf("password = %s\n", inClient.Password)
         fmt.Printf("END!")
         return
       }
