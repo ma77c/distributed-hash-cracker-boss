@@ -29,7 +29,7 @@ func main() {
 	// build marshalled data
 	r := &Range { Start: 1, End: 10, }
 	j, err := json.Marshal(r)
-	m := &Message { Code: 4, Payload: j, }
+	m := &Message { Code: 1, Payload: j, }
 	j, err = json.Marshal(m)
 	fmt.Printf("JSON %+s\n", j)
 	if err != nil {
