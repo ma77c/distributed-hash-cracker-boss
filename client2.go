@@ -27,15 +27,36 @@ func main() {
 		return
 	}
 	// build marshalled data
-	r := &Range { Start: 1, End: 10, }
-	j, err := json.Marshal(r)
-	m := &Message { Code: 1, Payload: j, }
-	j, err = json.Marshal(m)
-	fmt.Printf("JSON %+s\n", j)
+	outMessage := &Message { Code: 1, Payload: nil, }
+	om, err := json.Marshal(outMessage)
 	if err != nil {
 		fmt.Printf("Error %v", err)
 		return
 	}
-	fmt.Fprintf(conn, string(j))
-
+	fmt.Fprintf(conn, string(om))
+	fmt.Printf("Message Sent!\nCode: 1\n")
+	// lets keep reading
+	for {
+		ba := make([]byte, 2048)
+		n, err := conn.Read(ba)
+		if err != nil {
+			fmt.Printf("Error %v", err)
+			return
+		}
+		inMessage := Message{}
+		err = json.Unmarshal(ba[:n], &inMessage)
+		if err != nil {
+			fmt.Printf("Error %v", err)
+			return
+		}
+		if inMessage.Code == 2 {
+			minorRange := Range{}
+			err = json.Unmarshal(inMessage.Payload, &minorRange)
+			if err != nil {
+				fmt.Printf("Error %v", err)
+				return
+			}
+			fmt.Printf("\nMessage Received!\nCode: %v\nRange: %+v\n", inMessage.Code, minorRange)
+		}
+	}
 }

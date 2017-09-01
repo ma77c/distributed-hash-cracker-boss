@@ -21,6 +21,10 @@ type User struct {
 	ID		int
 	Pass	int
 }
+type Job struct {
+	Hash	string
+	Range	Range
+}
 
 func main() {
 	/*
@@ -70,29 +74,42 @@ func main() {
 	        fmt.Printf("Error %v", err)
 	        return
 	    }
-		fmt.Printf("Client: %s\n", cAddr)
 	    inMessage := Message{}
 		err = json.Unmarshal(ba[:n], &inMessage)
 		if err != nil {
 			fmt.Printf("Error %v\n", err)
 			return
 		}
+		fmt.Printf("\nMessage Received!\nFrom Address: %s\nCode: %v\n", cAddr, inMessage.Code)
 		if inMessage.Code == 1 {
 			minorRange := &Range {
 				Start: majorRange.Start,
-				End: majorRange.End,
+				End: majorRange.Start + increment - 1,
 			}
-			r, err := json.Marshal(minorRange)
+			// update major range
+			majorRange.Start = majorRange.Start + increment
+			//
+			mr, err := json.Marshal(minorRange)
 			if err != nil {
 		        fmt.Printf("Error %v", err)
 		        return
 		    }
 			outMessage := &Message {
 				Code: 2,
-				Payload: r,
+				Payload: mr,
 			}
+			om, err := json.Marshal(outMessage)
+			if err != nil {
+		        fmt.Printf("Error %v", err)
+		        return
+		    }
+			_, err = conn.WriteToUDP(om, cAddr)
+			if err != nil {
+				fmt.Printf("Error %v", err)
+				return
+			}
+			fmt.Printf("\nMessage Sent!\nTo Address: %s\nCode: %v\nRange: %v - %v\n",
+						cAddr, outMessage.Code, minorRange.Start, minorRange.End)
 		}
-		// json.Unmarshal(m.Payload, &r)
-		// fmt.Printf("Range %+v", r)
 	}
 }
