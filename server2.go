@@ -89,7 +89,7 @@ func main() {
 		    }
 			outMessage := &Message {
 				Code: 2,
-				Payload: r
+				Payload: r,
 			}
 		}
 		// json.Unmarshal(m.Payload, &r)
