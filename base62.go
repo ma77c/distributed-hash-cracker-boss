@@ -28,20 +28,36 @@ func add(augend []byte, addend []byte, base62dec map[byte]int, decbase62 map[int
     }
     resultant := make([]byte, len(long))
     remainder := 0
+    carry := 0
+    var shortDec int
     //
     // fmt.Printf("Long: %s\nShort: %s\n", long, short)
     for pos, char := range long {
         longDec := base62dec[char]
-        shortDec := base62dec[short[pos]]
-        singleSum := longDec + shortDec + remainder
+        if pos >= len(short) {
+            shortDec = 0
+        } else {
+            shortDec = base62dec[short[pos]]
+        }
+
+        singleSum := longDec + shortDec + carry
         remainder = 0
+        carry = 0
         if singleSum >= 62 {
+            carry = 1
             remainder = singleSum - 62
             resultant[pos] = decbase62[remainder]
         } else {
             resultant[pos] = decbase62[singleSum]
         }
-
+    }
+    if carry == 1 {
+        r := make([]byte, len(resultant) + 1)
+        for pos, char := range resultant {
+            r[pos] = char
+        }
+        r[len(resultant)] = decbase62[1]
+        resultant = r
     }
     resultant = reverse(resultant)
     return resultant
@@ -58,8 +74,8 @@ func main() {
         decbase62[pos] = char
     }
 
-    a := []byte("ABC")
-    b := []byte("123")
+    a := []byte("zz")
+    b := []byte("11")
     c := add(a, b, base62dec, decbase62)
     fmt.Printf("Resultant: %s", c)
     // b := []byte("abc")
