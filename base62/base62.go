@@ -1,9 +1,17 @@
-package main
+package base62
 
-import (
-    "fmt"
+var (
+    base62dec = make(map[byte]int)
+    decbase62 = make(map[int]byte)
 )
 
+func init() {
+    charset := []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+    for pos, char := range charset {
+        base62dec[char] = pos
+        decbase62[pos] = char
+    }
+}
 func reverse(array []byte) []byte {
     length := len(array)
     reversed := make([]byte, length)
@@ -14,8 +22,7 @@ func reverse(array []byte) []byte {
     }
     return reversed
 }
-func add(augend []byte, addend []byte, base62dec map[byte]int, decbase62 map[int]byte) []byte {
-    //
+func Add(augend []byte, addend []byte) []byte {
     var long []byte
     var short []byte
 
@@ -63,45 +70,20 @@ func add(augend []byte, addend []byte, base62dec map[byte]int, decbase62 map[int
     return resultant
 
 }
-func main() {
-
-    base62dec := make(map[byte]int)
-    decbase62 := make(map[int]byte)
-    charset := []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-
-    for pos, char := range charset {
-        base62dec[char] = pos
-        decbase62[pos] = char
-    }
-
-    a := []byte("zz")
-    b := []byte("11")
-    c := add(a, b, base62dec, decbase62)
-    fmt.Printf("Resultant: %s", c)
-    // b := []byte("abc")
-
-    // c := add(a, b)
-
-    // for pos, char := range a {
-    //     append(char, a)
-    // }
-    // c := reverse(a)
-    // d := reverse(c)
-    // for pos, char := range c {
-    //     fmt.Printf("%s = %s\n", pos, string(char))
-    // }
-    // fmt.Printf("%+s", d)
-
-
-
-}
-
-// var m map[string]int
+// func main() {
 //
+//     base62dec := make(map[byte]int)
+//     decbase62 := make(map[int]byte)
+//     charset := []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 //
+//     for pos, char := range charset {
+//         base62dec[char] = pos
+//         decbase62[pos] = char
+//     }
 //
-// func add(augend string, addend string) string {
+//     a := []byte("xzz")
+//     b := []byte("11")
+//     c := add(a, b, base62dec, decbase62)
+//     fmt.Printf("Resultant: %s", c)
 //
-//
-//     return sum
 // }
