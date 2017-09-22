@@ -88,10 +88,8 @@ func work(job Job, workChan chan []byte) {
 
 func main() {
 
-	/*
-		This is the initial part of the process. We dial the connection to the main server
-		and then we make the request for a job.
-	*/
+	// This is the initial part of the process. We dial the connection to the main server
+	// and then we make the request for a job.
 
 	// dial connection
 	conn, err := net.Dial("udp", "127.0.0.1:1234")
