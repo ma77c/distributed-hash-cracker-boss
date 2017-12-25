@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"strconv"
 	"crypto/md5"
 	"encoding/hex"
+	"github.com/m4ttclendenen/basen"
 )
 
 type Message struct {
@@ -14,8 +14,8 @@ type Message struct {
 	Payload	json.RawMessage
 }
 type Range struct {
-	Start	int
-	End		int
+	Start	[]byte
+	End		[]byte
 }
 type User struct {
 	ID		int
@@ -28,6 +28,7 @@ type Job struct {
 type Password struct {
 	Value	string
 }
+
 // keeps reading from server
 func readServer(conn net.Conn, serverChan chan []byte) {
 	ba := make([]byte, 2048)
@@ -44,16 +45,20 @@ func readServer(conn net.Conn, serverChan chan []byte) {
 }
 // crack the hash
 func work(job Job, workChan chan []byte) {
+	bn := basen.NewBaseN([]byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"), 62)
 	fmt.Printf("Starting New Job: %s\n", job.Hash)
-	for i := job.Range.Start; i <= job.Range.End; i++ {
-		iStr := strconv.Itoa(i)
+	flag := false
+	start := job.Range.Start
+	end := job.Range.End
+	current := start
+	for flag != true {
 		hasher := md5.New()
-		hasher.Write([]byte(iStr))
+		hasher.Write(current)
 		possibleHash := hex.EncodeToString(hasher.Sum(nil))
 		// compare computed hash to known hash given by job
 		if possibleHash == job.Hash {
 			password := Password {
-				Value: iStr,
+				Value: string(current),
 			}
 			p, err := json.Marshal(password)
 			if err != nil {
@@ -71,6 +76,12 @@ func work(job Job, workChan chan []byte) {
 			}
 			workChan <- om
 			return
+		} else if string(current) == string(end) {
+			fmt.Println("done")
+			return
+		} else {
+			current = bn.Add(current, []byte("1"))
+			fmt.Println(string(current))
 		}
 	}
 	// done with job. we will need another one
