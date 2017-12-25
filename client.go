@@ -76,9 +76,21 @@ func work(job Job, workChan chan []byte) {
 			}
 			workChan <- om
 			return
+		// reached the end of the block
 		} else if string(current) == string(end) {
 			fmt.Println("done")
+			outMessage := Message {
+				Code: 1,
+				Payload: nil,
+			}
+			om, err := json.Marshal(outMessage)
+			if err != nil {
+				fmt.Printf("Error %v", err)
+				return
+			}
+			workChan <- om
 			return
+		// increment
 		} else {
 			current = bn.Add(current, []byte("1"))
 			fmt.Println(string(current))
@@ -176,6 +188,9 @@ func main() {
 				fmt.Fprintf(conn, string(wch))
 				fmt.Printf("END!")
 				return
+			} else if inMessage.Code == 4 {
+				fmt.Println("Requesting New Block")
+				fmt.Fprintf(conn, string(wch))
 			}
 		default:
 			continue
