@@ -45,7 +45,7 @@ func readServer(conn net.Conn, serverChan chan []byte) {
 }
 // crack the hash
 func work(job Job, workChan chan []byte) {
-	bn := basen.NewBaseN([]byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"), 62)
+	base62 := basen.New([]byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"), 62)
 	fmt.Printf("Starting New Job: %s\n", job.Hash)
 	flag := false
 	start := job.Range.Start
@@ -92,7 +92,7 @@ func work(job Job, workChan chan []byte) {
 			return
 		// increment
 		} else {
-			current = bn.Add(current, []byte("1"))
+			current = base62.Add(current, []byte("1"))
 			fmt.Println(string(current))
 		}
 	}

@@ -30,6 +30,7 @@ type Password struct {
 }
 
 func main() {
+
 	////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////// Test Data //////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////
@@ -41,7 +42,7 @@ func main() {
 	fmt.Printf("\nHash: %s\n", hash)
 
 	// base 62 arithmetic
-	bn := basen.NewBaseN([]byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"), 62)
+	base62 := basen.New([]byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"), 62)
 	// Starting string
 	currBase := []byte("0")
 	// Increment set to 4C92 = 1,000,000 in base10
@@ -76,7 +77,7 @@ func main() {
 		}
 		fmt.Printf("\nMessage Received!\nFrom Address: %s\nCode: %v\n", cAddr, inMessage.Code)
 		if inMessage.Code == 1 {
-			newBase := bn.Add(currBase, increment)
+			newBase := base62.Add(currBase, increment)
 			minorRange := Range {
 				Start: currBase,
 				End: newBase,
